@@ -1,0 +1,39 @@
+Step 9: आगे जब भी changes करोगे
+git add .
+
+git commit -m "Add login controller"
+
+git push
+
+इतना ही करना होगा।
+
+
+/=========
+gith mai push karne wala command
+/=========
+
+# Initialize project
+git init
+
+# Check status
+git status
+
+# Add files
+git add .
+
+# Commit
+git commit -m "Your message"
+
+# Connect GitHub
+git remote add origin <repository-url>
+
+# Rename branch
+git branch -M main
+
+# First Push
+git push -u origin main
+
+# Next Pushes
+git add .
+git commit -m "New feature"
+git push
