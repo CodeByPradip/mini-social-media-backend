@@ -2,7 +2,7 @@ const { default: mongoose } = require("mongoose");
 const friendModel = require("../models/friend.model");
 const userModel = require("../models/user.model");
 
-// CREATE FRIEND REQUEST API /api/friends/request
+// SENT FRIEND REQUEST API /api/friends/request
 const sendRequest = async (req, res) => {
   //  1 login user ki id nikalo
   //  2 reciver ki id nikalo
@@ -17,7 +17,7 @@ const sendRequest = async (req, res) => {
     const { username } = req.body;
 
     // check username is not empty
-    if (!username.trim() || !username) {
+    if (!username || !username.trim()) {
       return res.status(400).json({ message: "username required" });
     }
 
@@ -58,8 +58,8 @@ const sendRequest = async (req, res) => {
       });
     }
 
-    // check both user are already friends
-    const alreadyFriends = await friendModel.findOne({
+    // check both user are already accepted request or friends
+    const already = await friendModel.findOne({
       $or: [
         {
           sender: userId,
@@ -74,9 +74,9 @@ const sendRequest = async (req, res) => {
       ],
     });
 
-    if (alreadyFriends) {
+    if (already) {
       return res.status(409).json({
-        message: "Already friends",
+        message: "Already accept requested or friends",
       });
     }
 
@@ -96,7 +96,7 @@ const sendRequest = async (req, res) => {
   }
 };
 
-// ACCEPT FRIEND REQUEST API /api/friends/request/:requestId/accept
+// ACCEPT FRIEND REQUEST API /api/friends/request/:requestId/accept <== id mai friend collection ka id dena hai
 const acceptRequest = async (req, res) => {
   // 1. Login user ki id nikalo (req.user)
   // 2. Params se requestId nikalo
@@ -109,14 +109,13 @@ const acceptRequest = async (req, res) => {
   try {
     const receiverId = req.user;
     const { requestId } = req.params;
+    console.log("login user id", receiverId);
+    console.log("friend document id", requestId);
 
     if (!mongoose.Types.ObjectId.isValid(requestId)) {
       return res.status(400).json({ message: "request id invalid" });
     }
 
-    if (!requestId) {
-      return res.status(400).json({ message: "request id invalid" });
-    }
     // find friend request document
     const friendRequest = await friendModel.findById(requestId);
 
@@ -138,12 +137,7 @@ const acceptRequest = async (req, res) => {
       });
     }
 
-    // check request already rejected
-    if (friendRequest.status === "rejected") {
-      return res.status(409).json({ message: "already request rejected" });
-    }
-
-    // update accepted user pending => accepted or friends
+    // update accepted user pending => accepted or
 
     friendRequest.status = "accepted";
     await friendRequest.save();
@@ -159,53 +153,121 @@ const acceptRequest = async (req, res) => {
 
 // CANCLE FRIEND REQUEST API /api/friends/request/:requestId/cancle
 const cancleRequest = async (req, res) => {
-      // 1 Login user id लो → req.user 
-      // 2 requestId लो
-      // 3 Validate requestId
-      // 4 Friend Request document निकालो
-      // 5 Document नहीं मिला → 404
-      // 6 Check friendRequest.sender === req.user
-      // अगर नहीं → 403 Forbidden
-      // Check status === "pending"
-      // अगर pending नहीं → 409
-      // Document delete करो
-      // Success response
+  // 1 Login user id लो → req.user
+  // 2 requestId लो
+  // 3 Validate requestId
+  // 4 Friend Request document निकालो
+  // 5 Document नहीं मिला → 404
+  // 6 Check friendRequest.sender === req.user
+  // अगर नहीं → 403 Forbidden
+  // Check status === "pending"
+  // अगर pending नहीं → 409
+  // Document delete करो
+  // Success response
 
   try {
-     // 1 Login user id लो → req.user 
-    const canclerUserId = req.user;
-    const { requestedId } = req.params;
+    // 1 Login user id लो → req.user
+    const canclerUserId = req.user; // login user id
+    const { requestId } = req.params; // friend collection id
+    console.log("friend request id", requestId);
 
-      // 3 Validate requestId
-    if (!mongoose.Types.ObjectId.isValid(requestedId)) {
+    // 3 Validate requestId
+    if (!mongoose.Types.ObjectId.isValid(requestId)) {
       return res.status(400).json({ message: "request id invalid" });
     }
 
-      // 3 Validate requestId
-    if (!requestedId) {
+    // 3 Validate requestId
+    if (!requestId) {
       return res.status(400).json({ message: "request id invalid" });
     }
 
-      // 4 Friend Request document निकालो
-    const friendRequest = await friendModel.findById(requestedId);
-    console.log("friend request collection",friendRequest);
-          // 5 Document नहीं मिला → 404
-    if(!friendRequest){
-      return res.status(404).json({message:"Forbidden"});
+    // 4 Friend Request document निकालो
+    const friendRequest = await friendModel.findById(requestId);
+    console.log("friend request collection", friendRequest);
+    // 5 Document नहीं मिला → 404
+    if (!friendRequest) {
+      return res.status(404).json({ message: "Forbidden" });
     }
 
-      // 6 Check friendRequest.sender === req.user
-    const senderUserMatch = friendRequest.sender.equals(req.user);
-    if(!senderUserMatch){
-      return res
+    // 6 Check friendRequest.sender === req.user
+    if (!friendRequest.sender.equals(req.user)) {
+      return res.status(403).json({
+        message: "Forbidden",
+      });
     }
+
+    if (friendRequest.status !== "pending") {
+      return res.status(409).json({
+        message: "Friend request is not pending",
+      });
+    }
+
+    await friendRequest.deleteOne();
+
+    return res.status(200).json({
+      message: "Friend request cancelled successfully",
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Request cancle failed" });
   }
-
-  const cancleUserId = req.user;
-  const { requestedId } = req.params;
 };
 
-module.exports = { sendRequest, acceptRequest,cancleRequest };
+// FRIEND REQUEST REJECTED BY RECEIVER API /api/friends/request/:requestId/reject
+const rejectRequest = async (req, res) => {
+  // 1 Login user id लो → req.user
+  // 2 requestId लो
+  // 3 Validate requestId
+  // 4 Friend Request document निकालो
+  // 5 Document नहीं मिला → 404
+  // 6 Check friendRequest.sender === req.user
+  // अगर नहीं → 403 Forbidden
+  // Check status === "pending"
+  // अगर pending नहीं → 409
+  // Document delete करो
+  // Success response
+
+  try {
+    // login user lao req.user && friend colection id lao req.params.requestId
+    const loginUser = req.user; // login user
+    const { requestId } = req.params; // friend collection id;
+
+    // check karo request id valid hai ki nai
+    if (!mongoose.Types.ObjectId.isValid(requestId)) {
+      return res.status(400).json({ message: "request id invalid" });
+    }
+    if (!requestId) {
+      return res.status(400).json({ message: "invalid collection id" });
+    }
+    // get friend request collection id using requestId
+    const friendRequest = await friendModel.findById(requestId);
+    // check document is validate
+    if (!friendRequest) {
+      return res
+        .status(400)
+        .json({ message: "friend collection is not found" });
+    }
+    // check friend request.sender !== req.user ? Forbidden 403 : continue
+    if (!friendRequest.receiver.equals(req.user)) {
+      return res.status(403).json({
+        message: "Forbidden",
+      });
+    }
+    // check friendrequest.status === pending ? done delete : 409
+    if (friendRequest.status !== "pending") {
+      return res.status(409).json({ message: "friend request is not pending" });
+    }
+    // all are good to go and delete friend request document
+    await friendRequest.deleteOne();
+
+    // sent success message
+    return res.status(200).json({
+      message: "Friend request rejected successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Request reject failed" });
+  }
+};
+
+module.exports = { sendRequest, acceptRequest, cancleRequest, rejectRequest };
