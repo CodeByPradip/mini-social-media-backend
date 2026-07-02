@@ -311,15 +311,13 @@ const getAllFriends = async (req, res) => {
     .populate("receiver", "username profileImages cover");
 
   const friends = [];
-  Array.from(data).forEach((item) => {
+  data.forEach((item) => {
     if (item.sender._id.equals(userId)) {
       friends.push(item.receiver);
     } else {
       friends.push(item.sender);
     }
   });
-
-  console.log("friends", friends);
 
   res.status(200).json({
     message: "Friend featch successfully",
