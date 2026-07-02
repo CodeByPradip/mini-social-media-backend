@@ -270,4 +270,68 @@ const rejectRequest = async (req, res) => {
   }
 };
 
-module.exports = { sendRequest, acceptRequest, cancleRequest, rejectRequest };
+// GET ALL REQUEST CURRENT USER FROM FRIEND DOCUMENT API /api/requests
+const getAllRequests = async (req, res) => {
+  try {
+    // Login user id
+    const userId = req.user;
+
+    // Get all incoming pending friend requests
+    const requests = await friendModel
+      .find({
+        receiver: userId,
+        status: "pending",
+      })
+      .populate("sender", "username profile cover")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      message: "Friend requests fetched successfully",
+      totalRequests: requests.length,
+      requests,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Failed to fetch friend requests",
+    });
+  }
+};
+
+// GET CURRENT USER FRIENDS FROM FRIEND DOCUMENT  =- GET /api/friends/get
+const getAllFriends = async (req, res) => {
+  // get current login user
+  const userId = req.user;
+  const data = await friendModel
+    .find({
+      status: "accepted",
+      $or: [{ sender: userId }, { receiver: userId }],
+    })
+    .populate("sender", "username  profileImages cover")
+    .populate("receiver", "username profileImages cover");
+
+  const friends = [];
+  Array.from(data).forEach((item) => {
+    if (item.sender._id.equals(userId)) {
+      friends.push(item.receiver);
+    } else {
+      friends.push(item.sender);
+    }
+  });
+
+  console.log("friends", friends);
+
+  res.status(200).json({
+    message: "Friend featch successfully",
+    total: friends.length,
+    friends,
+  });
+};
+module.exports = {
+  sendRequest,
+  acceptRequest,
+  cancleRequest,
+  rejectRequest,
+  getAllRequests,
+  getAllFriends,
+};

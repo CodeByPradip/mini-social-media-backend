@@ -1,11 +1,13 @@
 Step 9: आगे जब भी changes करोगे
+git status
 git add .
-
-git commit -m "Add login controller"
-
+git commit -m "feat: short meaningful message"
 git push
 
 इतना ही करना होगा।
+
+
+
 
 
 /=========
